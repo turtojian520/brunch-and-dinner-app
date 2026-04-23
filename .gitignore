@@ -1,0 +1,42 @@
+# Environment variables and secrets (never commit these)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+*.pem
+*.pfx
+secrets/
+credentials.json
+google-services.json
+GoogleService-Info.plist
+
+node_modules/
+.expo/
+.expo-shared/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+.DS_Store
+*.log
+
+# iOS build artifacts
+ios/Pods/
+ios/build/
+ios/DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Android build artifacts
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+*.keystore
+!debug.keystore
