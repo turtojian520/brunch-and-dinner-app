@@ -1,208 +1,119 @@
-# WhatToEat - Your Daily Meal Companion
+# WhatToEat — WebView shell architecture
 
-A React Native mobile app for iOS and Android that helps you plan meals, manage ingredients, discover recipes, and get cooking assistance with cloud-powered backend.
+This repository now contains **three independent subprojects**:
 
-## Features
+| Path       | What it is                                 | Language / framework        |
+|------------|--------------------------------------------|-----------------------------|
+| `web/`     | The actual app UI, deployed to the web     | React Native + Expo (RN-Web)|
+| `android/` | Thin native Android shell wrapping a WebView | Kotlin (AppCompat + WebKit) |
+| `ios/`     | Thin native iOS shell wrapping a WKWebView | Swift (SwiftUI + WebKit)    |
 
-### 🏠 Home Page
-- **Introduction Screen**: Welcome screen with "Generate Random Menu" button
-- **Daily Recommended Menu**: Randomly fetched delicacies from the recipe database
-- **Smart Selection**: Checkbox system to select recipes
-- **Add to Calendar**: Save selected recipes to specific dates
-- **Refresh Menu**: Generate new random recommendations
+The web build is the **single source of truth for UI and behavior**. Both native
+shells just point a WebView at the deployed web URL, so:
 
-### 📅 Menu Calendar
-- **Calendar View**: Visual calendar to browse dates
-- **Daily Menu Display**: View meals organized by breakfast, lunch, and dinner
-- **Recipe Details**: Tap any recipe to see full cooking instructions
-- **Meal Planning**: Track what you'll eat each day
-
-### 🥬 Ingredients
-- **Ingredient Database**: Store all your ingredients with details
-- **Smart Categorization**: Organize by vegetable, fruit, meat, seafood, dairy
-- **Expiration Tracking**: Automatic calculation of expiration dates
-- **Quantity Management**: Track amounts with custom units
-- **Search & Filter**: Find ingredients quickly
-- **Sorting Options**: Sort by name, quantity, or expiration date
-
-### 📖 Recipes
-- **Recipe Library**: Browse all available recipes
-- **Filter by Meal Type**: Breakfast, lunch, or dinner
-- **Filter by Difficulty**: Easy, medium, or difficult
-- **Add Custom Recipes**: Create your own recipes with ingredients and steps
-- **Detailed View**: See ingredients needed and step-by-step cooking process
-
-### 🤖 AI Cooking Assistant
-- **Recipe Recommendations**: Get suggestions based on your available ingredients
-- **Cooking Tips**: Learn cooking techniques and methods
-- **Ingredient Substitutions**: Find alternatives for missing ingredients
-- **Meal Planning Help**: Get advice on balanced meal planning
-- **Interactive Chat**: Ask any cooking-related questions
-
-## Installation & Setup
-
-### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
-- Expo CLI
-- **For Android**: Android Studio or physical Android device
-- **For iOS**: Xcode, CocoaPods, macOS required
-- **Supabase Account**: For cloud backend (free tier available)
-
-### Quick Start
-
-1. **Navigate to the project directory**:
-   ```bash
-   cd "op.2_brunch&dinner/whatoeat"
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Set up Supabase Backend** (See [QUICK_START.md](QUICK_START.md)):
-   - Create Supabase project at [supabase.com](https://supabase.com)
-   - Run `supabase/schema.sql` in SQL Editor
-   - Create `.env` file with your credentials:
-     ```
-     SUPABASE_URL=your-project-url
-     SUPABASE_ANON_KEY=your-anon-key
-     ```
-
-4. **Run on Android**:
-   ```bash
-   npm run android
-   # Or: npx expo start then press 'a'
-   ```
-
-5. **Run on iOS** (macOS only):
-   ```bash
-   # Option 1: Automatic setup
-   ./setup-ios.sh
-
-   # Option 2: Manual build
-   npx expo run:ios
-   ```
-
-   **Having iOS issues?** → See [FIX_IOS_NOW.md](FIX_IOS_NOW.md) for troubleshooting
-
-## Project Structure
+- **Cross-platform consistency** is automatic — Android and iOS render the
+  exact same HTML/CSS/JS.
+- The previous bug where buttons rendered invisibly on Android (a React-Native
+  Android quirk) cannot recur, because no React Native code ships inside the
+  Android or iOS apps any more.
+- Updating the app for most users no longer requires shipping a new APK / IPA;
+  redeploying the web build is enough.
 
 ```
-whatoeat/
-├── App.js                          # Main app entry with navigation
-├── src/
-│   ├── navigation/
-│   │   └── HomeNavigator.js        # Home stack navigation
-│   ├── screens/
-│   │   ├── IntroScreen.js          # Welcome/intro screen
-│   │   ├── RecommendedMenuScreen.js # Daily menu recommendations
-│   │   ├── AddToCalendarScreen.js  # Calendar date picker
-│   │   ├── RecipeDetailScreen.js   # Recipe details view
-│   │   ├── MenuCalendarScreen.js   # Calendar main page
-│   │   ├── IngredientsScreen.js    # Ingredients management
-│   │   ├── RecipesScreen.js        # Recipe library
-│   │   └── BotScreen.js            # AI assistant chat
-│   ├── data/
-│   │   └── mockRecipes.js          # Sample recipe database
-│   └── utils/
-│       └── storage.js              # AsyncStorage utilities
-├── package.json
-└── app.json
+   ┌────────────────────────┐         ┌────────────────────────┐
+   │  android/  (Kotlin)    │         │   ios/  (Swift)        │
+   │  ↳ WebView ───────────►├─────────┤◄─────────── WKWebView  │
+   └────────────────────────┘         └────────────────────────┘
+                ▲                                ▲
+                │ both load the same             │
+                │ https://<your-app>.vercel.app  │
+                ▼                                ▼
+                ┌─────────────────────────────────────────┐
+                │  web/   (React Native + Expo, RN-Web)   │
+                │  Deployed to Vercel                     │
+                └─────────────────────────────────────────┘
 ```
 
-## Usage Guide
+---
 
-### Adding Ingredients
-1. Go to Ingredients tab
-2. Tap the + button
-3. Fill in ingredient details (name, category, quantity, shelf life)
-4. Save to add to your inventory
+## Quick start
 
-### Planning Meals
-1. Open the app to see the intro screen
-2. Tap "Generate Random Menu"
-3. Check the recipes you want to add
-4. Tap "Add to Menu Calendar"
-5. Select a date and save
+### 1. The web app (`web/`)
 
-### Creating Recipes
-1. Go to Recipes tab
-2. Tap the + button
-3. Enter recipe name, time, meal type, and difficulty
-4. Add ingredients one by one
-5. Add cooking steps in order
-6. Save the recipe
+```bash
+cd web
+npm install
+npm run web        # local dev server
+```
 
-### Using the AI Assistant
-1. Go to Bot tab
-2. Ask questions like:
-   - "What can I make with my ingredients?"
-   - "How do I substitute eggs?"
-   - "Give me meal planning tips"
-3. Get instant cooking advice and recommendations
+Deploy it to Vercel — see [`DEPLOY_VERCEL.md`](./DEPLOY_VERCEL.md). After
+deployment you'll have a URL such as `https://whatoeat.vercel.app`. Plug that
+URL into the two native shells (one line each).
 
-## Technologies Used
+### 2. The Android shell (`android/`)
 
-### Frontend
-- **React Native**: Cross-platform mobile framework
-- **Expo SDK 52**: Development platform and tools
-- **React Navigation**: Navigation library
-- **React Native Calendars**: Calendar component
-- **Expo Vector Icons**: Icon library
+Open `android/` in Android Studio (or build from the command line):
 
-### Backend
-- **Supabase**: Cloud PostgreSQL database
-- **PostgreSQL**: Relational database with auto-calculated fields
-- **Row Level Security**: Data protection (configurable)
+```bash
+cd android
+./gradlew assembleDebug
+# or, with a custom URL:
+./gradlew assembleDebug -PWEB_APP_URL=https://your-deployment.vercel.app
+```
 
-### Data Management
-- **Service Layer**: Clean separation of concerns
-- **Data Transformation**: Automatic snake_case ↔ camelCase conversion
-- **Offline Support**: Fallback to local data
+The URL is configurable in **one place** — `android/gradle.properties`:
 
-## Color Scheme
+```properties
+WEB_APP_URL=https://whatoeat.vercel.app
+```
 
-- **Breakfast**: Orange (#FFB84D)
-- **Lunch**: Teal (#4ECDC4)
-- **Dinner**: Red (#FF6B6B)
-- **Easy**: Green (#4CAF50)
-- **Medium**: Orange (#FF9800)
-- **Difficult**: Red (#F44336)
+### 3. The iOS shell (`ios/`)
 
-## Documentation
+Open `ios/WhatToEat.xcodeproj` in Xcode and run on a simulator or device.
 
-- **[QUICK_START.md](QUICK_START.md)** - 10-minute setup guide
-- **[BACKEND_INTEGRATION.md](BACKEND_INTEGRATION.md)** - Complete backend documentation
-- **[FIX_IOS_NOW.md](FIX_IOS_NOW.md)** - iOS simulator troubleshooting
-- **[IOS_SETUP.md](IOS_SETUP.md)** - Detailed iOS setup guide
-- **[CLAUDE.MD](CLAUDE.MD)** - Original project specification
-- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Development summary
+The URL is configurable in **one place** — the `WEB_APP_URL` user-defined build
+setting in the Xcode target (already exposed via Info.plist key `WEB_APP_URL`).
+You can edit it via Xcode → Target → Build Settings → search for `WEB_APP_URL`.
+Default: `https://whatoeat.vercel.app`.
 
-## Completed Features ✅
+---
 
-- ✅ Cloud-synced data with Supabase
-- ✅ iOS and Android support
-- ✅ Recipe management (CRUD operations)
-- ✅ Ingredient inventory with expiration tracking
-- ✅ Menu calendar with date-based planning
-- ✅ AI cooking assistant (pattern-based)
-- ✅ Offline fallback mode
-- ✅ Auto-initialization with sample data
+## Why this architecture
 
-## Future Enhancements
+The previous setup compiled the React Native code into native Android/iOS
+binaries via Expo. That gave good performance but coupled UI consistency to
+React Native's platform-specific renderers, where bugs (like the invisible
+buttons on Android) were hard to track down.
 
-- User authentication with Supabase Auth
-- Real AI API integration (OpenAI/Anthropic)
-- Photo upload for recipes (Supabase Storage)
-- Shopping list generation
-- Nutritional information
-- Social sharing and recipe ratings
-- Real-time sync across devices
-- Voice input for AI assistant
-- Push notifications for meal planning
+The WebView-shell approach trades a small amount of runtime cost (a WebView
+instead of native views) for:
 
-## License
+1. **One renderer per device.** Whatever WebKit/Blink renders, you ship.
+2. **Hot updates.** Push to Vercel → users see the new version on next launch.
+3. **Tiny native codebases** that are easy to audit and rebuild — the entire
+   Android shell is one Activity, the iOS shell is four Swift files.
+4. **A clean migration path** away from React Native Web later (e.g. Next.js +
+   plain React) without touching the shells.
 
-This project is for educational purposes.
+---
+
+## Layout details
+
+```
+.
+├── README.md              ← you are here
+├── DEPLOY_VERCEL.md       ← step-by-step deployment guide (manual)
+├── android/               ← Kotlin shell (no React Native)
+│   ├── app/src/main/java/com/whatoeat/app/MainActivity.kt
+│   ├── app/build.gradle
+│   └── ...
+├── ios/                   ← Swift shell (no React Native)
+│   ├── WhatToEat/WhatToEatApp.swift
+│   ├── WhatToEat/WebViewContainer.swift
+│   └── WhatToEat.xcodeproj/
+└── web/                   ← The Expo / RN-Web app (this is what gets deployed)
+    ├── App.js
+    ├── src/
+    ├── package.json
+    └── docs/              ← previous design docs preserved for reference
+```

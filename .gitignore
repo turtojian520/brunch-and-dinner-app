@@ -1,4 +1,4 @@
-# Environment variables and secrets (never commit these)
+# Environment & secrets
 .env
 .env.*
 !.env.example
@@ -10,33 +10,27 @@ secrets/
 credentials.json
 google-services.json
 GoogleService-Info.plist
-
-node_modules/
-.expo/
-.expo-shared/
-dist/
-npm-debug.*
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
-*.orig.*
-web-build/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Logs
 *.log
+npm-debug.*
 
-# iOS build artifacts
-ios/Pods/
-ios/build/
-ios/DerivedData/
-*.xcworkspace/xcuserdata/
-*.xcodeproj/xcuserdata/
-
-# Android build artifacts
-android/build/
-android/app/build/
-android/.gradle/
-android/local.properties
-*.keystore
-!debug.keystore
+# Per-subproject gitignores live in:
+#   web/.gitignore     (Node/Expo build artifacts)
+#   android/.gitignore (Gradle build artifacts)
+#   ios/.gitignore     (Xcode build artifacts)

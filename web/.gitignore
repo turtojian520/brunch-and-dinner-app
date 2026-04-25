@@ -1,0 +1,22 @@
+# Node
+node_modules/
+npm-debug.*
+yarn-error.log
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Vercel
+.vercel/
+
+# Build outputs
+build/
+out/
+
+# Local env (also covered by root .gitignore, repeated for safety)
+.env
+.env.*
+!.env.example
