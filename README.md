@@ -114,6 +114,19 @@ instead of native views) for:
 └── web/                   ← The Expo / RN-Web app (this is what gets deployed)
     ├── App.js
     ├── src/
+    ├── api/               ← Vercel serverless functions (Gemini proxy)
+    ├── vercel.json
     ├── package.json
-    └── docs/              ← previous design docs preserved for reference
+    └── docs/              ← design docs + PROXY_SETUP.md
 ```
+
+## Secrets handling
+
+The Gemini API key is **never** shipped to the client. The web app posts to
+`/api/gemini`, a Vercel serverless function in `web/api/gemini.js` that
+reads `GEMINI_API_KEY` server-side and forwards the request to Google. The
+Android and iOS WebView shells inherit this for free because they load the
+deployed Vercel origin — the relative `/api/gemini` URL just works.
+
+See [`web/docs/PROXY_SETUP.md`](./web/docs/PROXY_SETUP.md) for the full
+breakdown and the env vars to add in the Vercel dashboard.

@@ -22,10 +22,16 @@ updates.
    - **Build Command**: `npx expo export --platform web`
    - **Output Directory**: `dist`
    - **Install Command**: `npm install`
-4. Click **Deploy**. After ~2 minutes you'll get a URL like
+4. Open **Environment Variables** and add (see
+   [`web/docs/PROXY_SETUP.md`](./web/docs/PROXY_SETUP.md) for full context):
+   - `EXPO_PUBLIC_SUPABASE_URL` — your Supabase project URL
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY` — your Supabase anon key
+   - `GEMINI_API_KEY` — server-only; powers the `/api/gemini` proxy so the
+     key never lands in the JS bundle. **Do not** prefix with `EXPO_PUBLIC_`.
+5. Click **Deploy**. After ~2 minutes you'll get a URL like
    `https://brunch-and-dinner-app.vercel.app` (or `https://whatoeat.vercel.app`
    if you claimed that name).
-5. Copy that URL — you'll need it in the next section.
+6. Copy that URL — you'll need it in the next section.
 
 ---
 
