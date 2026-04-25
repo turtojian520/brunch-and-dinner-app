@@ -1,16 +1,16 @@
-# OSX
-#
-.DS_Store
-
-# Android/IntelliJ
-#
+# Build outputs
 build/
-.idea
-.gradle
+app/build/
+.gradle/
 local.properties
-*.iml
-*.hprof
+captures/
 .cxx/
 
-# Bundle artifacts
-*.jsbundle
+# IDE
+.idea/
+*.iml
+
+# Keystore (debug keystore IS checked in for convenience; never commit release keystores)
+*.keystore
+!debug.keystore
+*.jks
