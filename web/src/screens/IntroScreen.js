@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import WebInstallPrompt from '../components/WebInstallPrompt';
 
 export default function IntroScreen({ navigation }) {
   return (
@@ -10,13 +11,15 @@ export default function IntroScreen({ navigation }) {
           <Text style={styles.title}>What To Eat</Text>
           <Text style={styles.subtitle}>Your daily meal companion</Text>
         </View>
-        
+
         <TouchableOpacity
           style={styles.button}
           onPress={() => navigation.navigate('RecommendedMenu')}
         >
           <Text style={styles.buttonText}>Generate Random Menu</Text>
         </TouchableOpacity>
+
+        <WebInstallPrompt />
       </View>
     </View>
   );

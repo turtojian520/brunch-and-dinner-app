@@ -5,8 +5,9 @@
   "scripts": {
     "start": "expo start",
     "web": "expo start --web",
-    "build": "expo export --platform web",
-    "vercel-build": "expo export --platform web"
+    "export:web": "expo export --platform web",
+    "build": "node ./scripts/build-web.js",
+    "vercel-build": "node ./scripts/build-web.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
