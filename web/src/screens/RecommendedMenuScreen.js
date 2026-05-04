@@ -102,7 +102,6 @@ export default function RecommendedMenuScreen({ navigation }) {
 
     try {
       setAddingToCalendar(true);
-      const selectedRecipes = recommendedMenu.filter(r => selectedItems.includes(r.id));
       const entries = selectedRecipes.map(recipe => ({
         date: selectedDate,
         recipeId: recipe.id,
