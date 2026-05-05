@@ -1,6 +1,6 @@
 export const mockRecipes = [
   {
-    id: '1',
+    id: 'a1b2c3d4-e5f6-4789-9abc-def012345671',
     name: 'Scrambled Eggs with Toast',
     mealType: 'breakfast',
     difficulty: 'easy',
@@ -20,7 +20,7 @@ export const mockRecipes = [
     ],
   },
   {
-    id: '2',
+    id: 'a1b2c3d4-e5f6-4789-9abc-def012345672',
     name: 'Chicken Stir Fry',
     mealType: 'lunch',
     difficulty: 'medium',
@@ -43,7 +43,7 @@ export const mockRecipes = [
     ],
   },
   {
-    id: '3',
+    id: 'a1b2c3d4-e5f6-4789-9abc-def012345673',
     name: 'Spaghetti Carbonara',
     mealType: 'dinner',
     difficulty: 'medium',
@@ -67,7 +67,7 @@ export const mockRecipes = [
     ],
   },
   {
-    id: '4',
+    id: 'a1b2c3d4-e5f6-4789-9abc-def012345674',
     name: 'Avocado Toast',
     mealType: 'breakfast',
     difficulty: 'easy',
@@ -88,7 +88,7 @@ export const mockRecipes = [
     ],
   },
   {
-    id: '5',
+    id: 'a1b2c3d4-e5f6-4789-9abc-def012345675',
     name: 'Beef Tacos',
     mealType: 'dinner',
     difficulty: 'easy',
@@ -113,7 +113,7 @@ export const mockRecipes = [
     ],
   },
   {
-    id: '6',
+    id: 'a1b2c3d4-e5f6-4789-9abc-def012345676',
     name: 'Greek Salad',
     mealType: 'lunch',
     difficulty: 'easy',

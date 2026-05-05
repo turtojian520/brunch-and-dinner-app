@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Modal,
   ScrollView,
 } from 'react-native';
@@ -16,6 +15,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { RecipeService } from '../services/recipeService';
 import { MenuCalendarService } from '../services/menuCalendarService';
 import { DataMigration } from '../utils/dataMigration';
+import { showAlert } from '../utils/alert';
 import { mockRecipes } from '../data/mockRecipes';
 
 export default function RecommendedMenuScreen({ navigation }) {
@@ -74,7 +74,7 @@ export default function RecommendedMenuScreen({ navigation }) {
 
   const handleAddToCalendar = () => {
     if (selectedItems.length === 0) {
-      Alert.alert('No Selection', 'Please select at least one recipe');
+      showAlert('No Selection', 'Please select at least one recipe');
       return;
     }
     const today = new Date().toISOString().split('T')[0];
@@ -84,7 +84,7 @@ export default function RecommendedMenuScreen({ navigation }) {
 
   const confirmAddToCalendar = async () => {
     if (!selectedDate) {
-      Alert.alert('Error', 'Please select a date');
+      showAlert('Error', 'Please select a date');
       return;
     }
 
@@ -93,7 +93,7 @@ export default function RecommendedMenuScreen({ navigation }) {
     const selectedRecipes = recommendedMenu.filter(r => selectedItems.includes(r.id));
     const invalidRecipes = selectedRecipes.filter(r => !uuidRegex.test(r.id));
     if (invalidRecipes.length > 0) {
-      Alert.alert(
+      showAlert(
         'Cannot Add',
         'Some recipes are from local data and cannot be added to the calendar. Please ensure recipes are synced to the database first.'
       );
@@ -110,15 +110,15 @@ export default function RecommendedMenuScreen({ navigation }) {
 
       const result = await MenuCalendarService.addMultipleRecipesToMenu(entries);
       if (result.success) {
-        Alert.alert('Success', `${selectedRecipes.length} recipes added to ${selectedDate}!`);
+        showAlert('Success', `${selectedRecipes.length} recipes added to ${selectedDate}!`);
         setDatePickerVisible(false);
         setSelectedItems([]);
       } else {
-        Alert.alert('Error', result.error || 'Failed to add to calendar');
+        showAlert('Error', result.error || 'Failed to add to calendar');
       }
     } catch (err) {
       console.error('Error adding to calendar:', err);
-      Alert.alert('Error', 'Failed to add to calendar');
+      showAlert('Error', 'Failed to add to calendar');
     } finally {
       setAddingToCalendar(false);
     }

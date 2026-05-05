@@ -121,16 +121,22 @@ export class RecipeService {
     return SupabaseService.execute(async () => {
       const { ingredients, steps, ...recipeInfo } = recipeData;
 
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const insertRow = {
+        name: recipeInfo.name,
+        meal_type: recipeInfo.mealType || recipeInfo.meal_type,
+        difficulty: recipeInfo.difficulty,
+        time: parseInt(recipeInfo.time),
+        steps: steps || [],
+      };
+      if (recipeInfo.id && uuidRegex.test(recipeInfo.id)) {
+        insertRow.id = recipeInfo.id;
+      }
+
       // Insert recipe
       const recipeResponse = await supabase
         .from('recipes')
-        .insert([{
-          name: recipeInfo.name,
-          meal_type: recipeInfo.mealType || recipeInfo.meal_type,
-          difficulty: recipeInfo.difficulty,
-          time: parseInt(recipeInfo.time),
-          steps: steps || [],
-        }])
+        .insert([insertRow])
         .select()
         .single();
 
