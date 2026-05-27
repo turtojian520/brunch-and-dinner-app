@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { getSession, onAuthStateChange } from '../services/authService';
 import LoginScreen from '../screens/LoginScreen';
 
@@ -8,31 +7,31 @@ export default function AuthGuard({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    let unsubscribe;
+    let unsub;
 
-    const checkAuth = async () => {
+    const init = async () => {
       const session = await getSession();
       setIsAuthenticated(!!session);
       setIsLoading(false);
     };
 
-    checkAuth();
+    init();
 
-    const { data } = onAuthStateChange((event, session) => {
+    const { data } = onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session);
     });
-    unsubscribe = data?.subscription?.unsubscribe;
+    unsub = data?.subscription?.unsubscribe;
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsub) unsub();
     };
   }, []);
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
-      </View>
+      <div className="flex h-screen w-screen items-center justify-center bg-brand-background">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-primary/20 border-t-brand-primary" />
+      </div>
     );
   }
 
@@ -42,12 +41,3 @@ export default function AuthGuard({ children }) {
 
   return children;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFF5F5',
-  },
-});

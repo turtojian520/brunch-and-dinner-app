@@ -89,6 +89,77 @@ export class AiService {
     }
   }
 
+  /**
+   * Generate a single dish suggestion for a specific meal type based on available ingredients.
+   * Used by the RecommendedMenuScreen to fill gaps when no existing recipe matches.
+   */
+  static async generateDishSuggestion(ingredients, mealType) {
+    try {
+      const ingredientList = ingredients
+        .map(i => `${i.name} (${i.quantity} ${i.unit})`)
+        .join(', ');
+
+      const mealLabel = { breakfast: '早餐', lunch: '午餐', dinner: '晚餐' }[mealType] || mealType;
+
+      const prompt = `你是一位专业厨师。根据以下现有食材，推荐一道适合${mealLabel}的菜肴。
+
+现有食材：${ingredientList}
+
+要求：
+- 必须是适合${mealLabel}的菜品
+- 尽量只使用上述食材（可默认盐、酱油、食用油等基础调料可用）
+- 给出合理的烹饪时间和难度
+
+你必须严格按照以下 JSON 格式回复，不要包含任何其他文字：
+{
+  "name": "菜品名称",
+  "mealType": "${mealType}",
+  "difficulty": "easy/medium/hard",
+  "time": 30,
+  "ingredients": [
+    { "name": "食材名", "property": "类别如meat/vegetable/dairy/seasoning/grain/fruit/oil/protein/pasta", "quantity": "数量", "unit": "单位如g/个/勺/毫升/杯" }
+  ],
+  "steps": [
+    "步骤1",
+    "步骤2"
+  ]
+}
+
+提供 4-8 种食材和 4-8 个详细烹饪步骤。只回复 JSON 对象。`;
+
+      const data = await callGemini({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        },
+      });
+
+      if (data.candidates && data.candidates.length > 0) {
+        const text = data.candidates[0].content?.parts?.[0]?.text;
+        if (text) {
+          let jsonStr = text.trim();
+          if (jsonStr.startsWith('```')) {
+            jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+          }
+          const dish = JSON.parse(jsonStr);
+          return { success: true, dish, error: null };
+        }
+      }
+
+      return { success: false, dish: null, error: 'AI 未返回有效菜品' };
+    } catch (error) {
+      console.error('Dish suggestion error:', error);
+      return {
+        success: false,
+        dish: null,
+        error: error.message || 'Failed to generate dish suggestion',
+      };
+    }
+  }
+
   static async generateRecipe(dishName, mealType, difficulty, time) {
     try {
       const prompt = `You are a professional chef. Generate a complete recipe for "${dishName}".
