@@ -3,14 +3,9 @@
  * Calls a server-side proxy (/api/gemini) so the Gemini API key never ships
  * in the client bundle. The proxy holds GEMINI_API_KEY as a Vercel
  * environment variable and forwards requests to Google.
- *
- * The Android/iOS shells load the deployed Vercel URL inside a WebView, so
- * relative `/api/gemini` calls resolve same-origin too — no extra config
- * needed. EXPO_PUBLIC_API_BASE is only required if the bundle is ever served
- * from a different origin than the proxy.
  */
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE || '';
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 const PROXY_URL = `${API_BASE}/api/gemini`;
 
 async function callGemini(payload) {

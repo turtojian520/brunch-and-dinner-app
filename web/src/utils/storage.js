@@ -1,5 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 export const StorageKeys = {
   RECIPES: '@recipes',
   INGREDIENTS: '@ingredients',
@@ -8,7 +6,7 @@ export const StorageKeys = {
 
 export const saveData = async (key, data) => {
   try {
-    await AsyncStorage.setItem(key, JSON.stringify(data));
+    window.localStorage.setItem(key, JSON.stringify(data));
   } catch (error) {
     console.error('Error saving data:', error);
   }
@@ -16,7 +14,7 @@ export const saveData = async (key, data) => {
 
 export const getData = async (key) => {
   try {
-    const data = await AsyncStorage.getItem(key);
+    const data = window.localStorage.getItem(key);
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('Error getting data:', error);
@@ -26,7 +24,7 @@ export const getData = async (key) => {
 
 export const removeData = async (key) => {
   try {
-    await AsyncStorage.removeItem(key);
+    window.localStorage.removeItem(key);
   } catch (error) {
     console.error('Error removing data:', error);
   }

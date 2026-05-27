@@ -4,13 +4,9 @@ import { supabase, isSupabaseConfigured } from '../config/supabase';
  * Base Supabase Service
  * Provides common error handling and utility functions for all services
  */
-
 export class SupabaseService {
   /**
    * Handle Supabase response and errors
-   * @param {Object} response - Supabase response object with data and error
-   * @param {string} operation - Description of the operation for error messages
-   * @returns {Object} - { success: boolean, data: any, error: string }
    */
   static handleResponse(response, operation = 'Operation') {
     const { data, error } = response;
@@ -33,7 +29,6 @@ export class SupabaseService {
 
   /**
    * Check if Supabase is properly configured
-   * @returns {boolean}
    */
   static isConfigured() {
     return isSupabaseConfigured();
@@ -41,7 +36,6 @@ export class SupabaseService {
 
   /**
    * Get Supabase client instance
-   * @returns {Object} - Supabase client
    */
   static getClient() {
     return supabase;
@@ -49,9 +43,6 @@ export class SupabaseService {
 
   /**
    * Execute a database operation with error handling
-   * @param {Function} operation - Async function to execute
-   * @param {string} operationName - Name of operation for logging
-   * @returns {Promise<Object>} - { success, data, error }
    */
   static async execute(operation, operationName = 'Database operation') {
     try {

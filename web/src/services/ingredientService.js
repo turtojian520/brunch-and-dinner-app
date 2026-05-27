@@ -1,249 +1,328 @@
 import { SupabaseService } from './supabaseService';
 import { supabase } from '../config/supabase';
+import { getData, saveData, StorageKeys } from '../utils/storage';
 
-/**
- * Ingredient Service
- * Handles all ingredient inventory operations
- */
+const defaultIngredients = [
+  {
+    id: 'i1',
+    name: 'Eggs',
+    category: 'protein',
+    quantity: '6',
+    unit: 'pcs',
+    addedDate: new Date().toISOString().split('T')[0],
+    shelfLifeDays: '14',
+    source: 'my_ingredients'
+  },
+  {
+    id: 'i2',
+    name: 'Butter',
+    category: 'dairy',
+    quantity: '200',
+    unit: 'g',
+    addedDate: new Date().toISOString().split('T')[0],
+    shelfLifeDays: '30',
+    source: 'my_ingredients'
+  },
+  {
+    id: 'i3',
+    name: 'Bread',
+    category: 'grain',
+    quantity: '4',
+    unit: 'slices',
+    addedDate: new Date().toISOString().split('T')[0],
+    shelfLifeDays: '5',
+    source: 'my_ingredients'
+  },
+  {
+    id: 'i4',
+    name: 'Chicken Breast',
+    category: 'meat',
+    quantity: '300',
+    unit: 'g',
+    addedDate: new Date().toISOString().split('T')[0],
+    shelfLifeDays: '3',
+    source: 'my_ingredients'
+  },
+  {
+    id: 'i5',
+    name: 'Tomatoes',
+    category: 'vegetable',
+    quantity: '5',
+    unit: 'pcs',
+    addedDate: new Date().toISOString().split('T')[0],
+    shelfLifeDays: '7',
+    source: 'my_ingredients'
+  }
+];
 
 export class IngredientService {
   /**
+   * Helper to get ingredients from local storage
+   */
+  static async getLocalIngredients() {
+    let list = await getData(StorageKeys.INGREDIENTS);
+    if (!list || list.length === 0) {
+      list = [...defaultIngredients];
+      await saveData(StorageKeys.INGREDIENTS, list);
+    }
+    return list;
+  }
+
+  /**
+   * Helper to compute expiration date
+   */
+  static computeExpiration(addedDate, shelfLifeDays) {
+    const date = new Date(addedDate);
+    date.setDate(date.getDate() + parseInt(shelfLifeDays || 7));
+    return date.toISOString().split('T')[0];
+  }
+
+  /**
    * Get all ingredients from user's inventory
-   * @returns {Promise<Object>} { success, data, error }
    */
   static async getAllIngredients() {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('ingredients')
-        .select('*')
-        .order('created_at', { ascending: false });
-    }, 'Get all ingredients');
-  }
+    if (SupabaseService.isConfigured()) {
+      const result = await SupabaseService.execute(async () => {
+        return await supabase
+          .from('ingredients')
+          .select('*')
+          .order('created_at', { ascending: false });
+      }, 'Get all ingredients');
 
-  /**
-   * Get user's personal ingredients (source = 'my_ingredients')
-   * @returns {Promise<Object>} { success, data, error }
-   */
-  static async getMyIngredients() {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('ingredients')
-        .select('*')
-        .eq('source', 'my_ingredients')
-        .order('created_at', { ascending: false });
-    }, 'Get my ingredients');
-  }
+      if (result.success && result.data) {
+        const transformed = this.transformArrayToFrontend(result.data);
+        await saveData(StorageKeys.INGREDIENTS, transformed);
+        return { success: true, data: result.data, error: null };
+      }
+    }
 
-  /**
-   * Get ingredients by category
-   * @param {string} category - Category name
-   * @returns {Promise<Object>} { success, data, error }
-   */
-  static async getIngredientsByCategory(category) {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('ingredients')
-        .select('*')
-        .eq('category', category)
-        .order('name', { ascending: true });
-    }, `Get ${category} ingredients`);
-  }
-
-  /**
-   * Get ingredients expiring within specified days
-   * @param {number} days - Number of days to check
-   * @returns {Promise<Object>} { success, data, error }
-   */
-  static async getExpiringSoon(days = 7) {
-    return SupabaseService.execute(async () => {
-      const targetDate = new Date();
-      targetDate.setDate(targetDate.getDate() + days);
-      const targetDateStr = targetDate.toISOString().split('T')[0];
-
-      return await supabase
-        .from('ingredients')
-        .select('*')
-        .lte('expiration_date', targetDateStr)
-        .order('expiration_date', { ascending: true });
-    }, `Get ingredients expiring within ${days} days`);
-  }
-
-  /**
-   * Search ingredients by name
-   * @param {string} query - Search query
-   * @returns {Promise<Object>} { success, data, error }
-   */
-  static async searchIngredients(query) {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('ingredients')
-        .select('*')
-        .ilike('name', `%${query}%`)
-        .order('name', { ascending: true });
-    }, `Search ingredients: ${query}`);
+    const local = await this.getLocalIngredients();
+    return {
+      success: true,
+      data: this.transformArrayToSupabaseFormat(local),
+      error: null
+    };
   }
 
   /**
    * Create a new ingredient
-   * @param {Object} ingredientData - Ingredient object
-   * @returns {Promise<Object>} { success, data, error }
    */
   static async createIngredient(ingredientData) {
-    return SupabaseService.execute(async () => {
-      const addedDate = ingredientData.addedDate || new Date().toISOString().split('T')[0];
+    const newId = crypto.randomUUID();
+    const addedDate = ingredientData.addedDate || new Date().toISOString().split('T')[0];
+    const shelfLifeDays = ingredientData.shelfLifeDays || '7';
+    
+    const formatted = {
+      id: newId,
+      name: ingredientData.name,
+      category: ingredientData.category || 'other',
+      quantity: ingredientData.quantity?.toString() || '1',
+      unit: ingredientData.unit || 'pcs',
+      addedDate: addedDate,
+      shelfLifeDays: shelfLifeDays,
+      expirationDate: this.computeExpiration(addedDate, shelfLifeDays),
+      source: ingredientData.source || 'my_ingredients'
+    };
 
-      return await supabase
-        .from('ingredients')
-        .insert([{
-          name: ingredientData.name,
-          category: ingredientData.category,
-          quantity: parseFloat(ingredientData.quantity),
-          unit: ingredientData.unit,
-          added_date: addedDate,
-          shelf_life_days: parseInt(ingredientData.shelfLifeDays || ingredientData.shelf_life_days || 7),
-          source: ingredientData.source || 'my_ingredients',
-        }])
-        .select()
-        .single();
-    }, 'Create ingredient');
+    if (SupabaseService.isConfigured()) {
+      const result = await SupabaseService.execute(async () => {
+        return await supabase
+          .from('ingredients')
+          .insert([{
+            id: newId,
+            name: formatted.name,
+            category: formatted.category,
+            quantity: parseFloat(formatted.quantity),
+            unit: formatted.unit,
+            added_date: formatted.addedDate,
+            shelf_life_days: parseInt(formatted.shelfLifeDays),
+            source: formatted.source,
+          }])
+          .select()
+          .single();
+      }, 'Create ingredient');
+
+      if (result.success) {
+        const local = await this.getLocalIngredients();
+        local.unshift(formatted);
+        await saveData(StorageKeys.INGREDIENTS, local);
+        return result;
+      }
+    }
+
+    const local = await this.getLocalIngredients();
+    local.unshift(formatted);
+    await saveData(StorageKeys.INGREDIENTS, local);
+
+    return {
+      success: true,
+      data: this.transformToSupabaseFormat(formatted),
+      error: null
+    };
   }
 
   /**
    * Update an existing ingredient
-   * @param {string} id - Ingredient UUID
-   * @param {Object} updates - Fields to update
-   * @returns {Promise<Object>} { success, data, error }
    */
   static async updateIngredient(id, updates) {
-    return SupabaseService.execute(async () => {
-      const updateData = {};
+    if (SupabaseService.isConfigured()) {
+      const result = await SupabaseService.execute(async () => {
+        const updateData = {};
+        if (updates.name) updateData.name = updates.name;
+        if (updates.category) updateData.category = updates.category;
+        if (updates.quantity !== undefined) updateData.quantity = parseFloat(updates.quantity);
+        if (updates.unit) updateData.unit = updates.unit;
+        if (updates.shelfLifeDays !== undefined) updateData.shelf_life_days = parseInt(updates.shelfLifeDays);
+        if (updates.addedDate) updateData.added_date = updates.addedDate;
 
-      if (updates.name) updateData.name = updates.name;
-      if (updates.category) updateData.category = updates.category;
-      if (updates.quantity !== undefined) updateData.quantity = parseFloat(updates.quantity);
-      if (updates.unit) updateData.unit = updates.unit;
-      if (updates.shelfLifeDays || updates.shelf_life_days) {
-        updateData.shelf_life_days = parseInt(updates.shelfLifeDays || updates.shelf_life_days);
-      }
-      if (updates.addedDate || updates.added_date) {
-        updateData.added_date = updates.addedDate || updates.added_date;
-      }
+        return await supabase
+          .from('ingredients')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+      }, `Update ingredient ${id}`);
 
-      return await supabase
-        .from('ingredients')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-    }, `Update ingredient ${id}`);
+      if (result.success) {
+        const local = await this.getLocalIngredients();
+        const idx = local.findIndex(i => i.id === id);
+        if (idx !== -1) {
+          local[idx] = {
+            ...local[idx],
+            ...updates,
+            expirationDate: this.computeExpiration(
+              updates.addedDate || local[idx].addedDate,
+              updates.shelfLifeDays || local[idx].shelfLifeDays
+            )
+          };
+          await saveData(StorageKeys.INGREDIENTS, local);
+        }
+        return result;
+      }
+    }
+
+    const local = await this.getLocalIngredients();
+    const idx = local.findIndex(i => i.id === id);
+    if (idx !== -1) {
+      local[idx] = {
+        ...local[idx],
+        ...updates,
+        expirationDate: this.computeExpiration(
+          updates.addedDate || local[idx].addedDate,
+          updates.shelfLifeDays || local[idx].shelfLifeDays
+        )
+      };
+      await saveData(StorageKeys.INGREDIENTS, local);
+      return {
+        success: true,
+        data: this.transformToSupabaseFormat(local[idx]),
+        error: null
+      };
+    }
+
+    return { success: false, data: null, error: 'Ingredient not found' };
   }
 
   /**
    * Delete an ingredient
-   * @param {string} id - Ingredient UUID
-   * @returns {Promise<Object>} { success, data, error }
    */
   static async deleteIngredient(id) {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('ingredients')
-        .delete()
-        .eq('id', id);
-    }, `Delete ingredient ${id}`);
+    if (SupabaseService.isConfigured()) {
+      const result = await SupabaseService.execute(async () => {
+        return await supabase
+          .from('ingredients')
+          .delete()
+          .eq('id', id);
+      }, `Delete ingredient ${id}`);
+
+      if (result.success) {
+        const local = await this.getLocalIngredients();
+        const filtered = local.filter(i => i.id !== id);
+        await saveData(StorageKeys.INGREDIENTS, filtered);
+        return result;
+      }
+    }
+
+    const local = await this.getLocalIngredients();
+    const filtered = local.filter(i => i.id !== id);
+    await saveData(StorageKeys.INGREDIENTS, filtered);
+    return { success: true, data: null, error: null };
   }
 
-  /**
-   * Sort ingredients
-   * @param {Array} ingredients - Array of ingredients
-   * @param {string} sortBy - 'name', 'quantity', or 'expiration'
-   * @returns {Array} - Sorted ingredients
-   */
   static sortIngredients(ingredients, sortBy = 'name') {
     if (!ingredients || !Array.isArray(ingredients)) return [];
-
     const sorted = [...ingredients];
-
     switch (sortBy) {
       case 'name':
         return sorted.sort((a, b) => a.name.localeCompare(b.name));
-
       case 'quantity':
-        return sorted.sort((a, b) => parseFloat(b.quantity) - parseFloat(a.quantity));
-
+        return sorted.sort((a, b) => parseFloat(b.quantity || 0) - parseFloat(a.quantity || 0));
       case 'expiration':
         return sorted.sort((a, b) => {
-          const dateA = new Date(a.expiration_date || a.expirationDate);
-          const dateB = new Date(b.expiration_date || b.expirationDate);
+          const dateA = new Date(a.expiration_date || a.expirationDate || 0);
+          const dateB = new Date(b.expiration_date || b.expirationDate || 0);
           return dateA - dateB;
         });
-
       default:
         return sorted;
     }
   }
 
-  /**
-   * Filter ingredients by multiple criteria
-   * @param {Array} ingredients - Array of ingredients
-   * @param {Object} filters - Filter criteria
-   * @returns {Array} - Filtered ingredients
-   */
   static filterIngredients(ingredients, filters = {}) {
     if (!ingredients || !Array.isArray(ingredients)) return [];
-
     let filtered = [...ingredients];
-
-    // Filter by source
-    if (filters.source && filters.source !== 'all') {
-      filtered = filtered.filter(ing =>
-        ing.source === filters.source || ing.source === filters.source.replace(/_/g, ' ')
-      );
-    }
-
-    // Filter by category
     if (filters.category && filters.category !== 'all') {
       filtered = filtered.filter(ing =>
         ing.category?.toLowerCase() === filters.category.toLowerCase()
       );
     }
-
-    // Filter by search query
     if (filters.search) {
       const query = filters.search.toLowerCase();
       filtered = filtered.filter(ing =>
         ing.name?.toLowerCase().includes(query)
       );
     }
-
     return filtered;
   }
 
   /**
-   * Transform Supabase ingredient format to frontend format
-   * @param {Object} supabaseIngredient - Ingredient from Supabase
-   * @returns {Object} - Ingredient in frontend format
+   * Helper formatting
    */
+  static transformToSupabaseFormat(ing) {
+    if (!ing) return null;
+    return {
+      id: ing.id,
+      name: ing.name,
+      category: ing.category,
+      quantity: parseFloat(ing.quantity || 0),
+      unit: ing.unit,
+      added_date: ing.addedDate,
+      shelf_life_days: parseInt(ing.shelfLifeDays || 7),
+      expiration_date: ing.expirationDate || this.computeExpiration(ing.addedDate, ing.shelfLifeDays),
+      source: ing.source
+    };
+  }
+
+  static transformArrayToSupabaseFormat(arr) {
+    if (!arr) return [];
+    return arr.map(i => this.transformToSupabaseFormat(i));
+  }
+
   static transformToFrontend(supabaseIngredient) {
     if (!supabaseIngredient) return null;
-
     return {
       id: supabaseIngredient.id,
       name: supabaseIngredient.name,
       category: supabaseIngredient.category,
       quantity: supabaseIngredient.quantity?.toString() || '0',
       unit: supabaseIngredient.unit,
-      addedDate: supabaseIngredient.added_date,
-      shelfLifeDays: supabaseIngredient.shelf_life_days?.toString() || '7',
-      expirationDate: supabaseIngredient.expiration_date,
-      source: supabaseIngredient.source === 'my_ingredients' ? 'my' : 'recipe',
+      addedDate: supabaseIngredient.added_date || supabaseIngredient.addedDate,
+      shelfLifeDays: (supabaseIngredient.shelf_life_days || supabaseIngredient.shelfLifeDays || '7').toString(),
+      expirationDate: supabaseIngredient.expiration_date || supabaseIngredient.expirationDate,
+      source: supabaseIngredient.source || 'my_ingredients',
     };
   }
 
-  /**
-   * Transform array of Supabase ingredients to frontend format
-   * @param {Array} ingredients - Array of ingredients from Supabase
-   * @returns {Array} - Array of ingredients in frontend format
-   */
   static transformArrayToFrontend(ingredients) {
     if (!ingredients || !Array.isArray(ingredients)) return [];
     return ingredients.map(ing => this.transformToFrontend(ing));

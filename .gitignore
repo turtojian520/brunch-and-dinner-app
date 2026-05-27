@@ -34,3 +34,11 @@ npm-debug.*
 #   web/.gitignore     (Node/Expo build artifacts)
 #   android/.gitignore (Gradle build artifacts)
 #   ios/.gitignore     (Xcode build artifacts)
+
+# Node modules
+node_modules/
+web/node_modules/
+dist/
+web/dist/
+.expo/
+web/.expo/

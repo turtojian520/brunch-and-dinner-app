@@ -1,250 +1,252 @@
 import { SupabaseService } from './supabaseService';
 import { supabase } from '../config/supabase';
+import { getData, saveData, StorageKeys } from '../utils/storage';
+import { mockRecipes } from '../data/mockRecipes';
 
 /**
  * Recipe Service
- * Handles all recipe-related database operations
+ * Handles all recipe-related operations with offline-first support.
  */
-
 export class RecipeService {
   /**
+   * Helper to load recipes from local storage
+   */
+  static async getLocalRecipes() {
+    let recipes = await getData(StorageKeys.RECIPES);
+    if (!recipes || recipes.length === 0) {
+      recipes = [...mockRecipes];
+      await saveData(StorageKeys.RECIPES, recipes);
+    }
+    return recipes;
+  }
+
+  /**
    * Fetch all recipes with their ingredients
-   * @returns {Promise<Object>} { success, data, error }
    */
   static async getAllRecipes() {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('recipes')
-        .select(`
-          *,
-          recipe_ingredients (
-            id,
-            name,
-            property,
-            quantity,
-            unit
-          )
-        `)
-        .order('created_at', { ascending: false });
-    }, 'Get all recipes');
+    if (SupabaseService.isConfigured()) {
+      const result = await SupabaseService.execute(async () => {
+        return await supabase
+          .from('recipes')
+          .select(`
+            *,
+            recipe_ingredients (
+              id,
+              name,
+              property,
+              quantity,
+              unit
+            )
+          `)
+          .order('created_at', { ascending: false });
+      }, 'Get all recipes');
+
+      if (result.success && result.data) {
+        // Sync cache to local storage
+        const transformed = this.transformArrayToFrontend(result.data);
+        await saveData(StorageKeys.RECIPES, transformed);
+        return { success: true, data: result.data, error: null };
+      }
+    }
+
+    // Offline fallback
+    const local = await this.getLocalRecipes();
+    // Wrap ingredients into the db format structure for compatibility if needed,
+    // or return the local ones in frontend format directly.
+    return {
+      success: true,
+      data: this.transformArrayToSupabaseFormat(local),
+      error: null
+    };
   }
 
   /**
    * Get a single recipe by ID
-   * @param {string} id - Recipe UUID
-   * @returns {Promise<Object>} { success, data, error }
    */
   static async getRecipeById(id) {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('recipes')
-        .select(`
-          *,
-          recipe_ingredients (
-            id,
-            name,
-            property,
-            quantity,
-            unit
-          )
-        `)
-        .eq('id', id)
-        .single();
-    }, `Get recipe ${id}`);
-  }
+    if (SupabaseService.isConfigured()) {
+      const result = await SupabaseService.execute(async () => {
+        return await supabase
+          .from('recipes')
+          .select(`
+            *,
+            recipe_ingredients (
+              id,
+              name,
+              property,
+              quantity,
+              unit
+            )
+          `)
+          .eq('id', id)
+          .single();
+      }, `Get recipe ${id}`);
 
-  /**
-   * Get recipes filtered by meal type
-   * @param {string} mealType - 'breakfast', 'lunch', or 'dinner'
-   * @returns {Promise<Object>} { success, data, error }
-   */
-  static async getRecipesByMealType(mealType) {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('recipes')
-        .select(`
-          *,
-          recipe_ingredients (*)
-        `)
-        .eq('meal_type', mealType)
-        .order('created_at', { ascending: false });
-    }, `Get ${mealType} recipes`);
-  }
+      if (result.success && result.data) {
+        return result;
+      }
+    }
 
-  /**
-   * Get recipes filtered by difficulty
-   * @param {string} difficulty - 'easy', 'medium', or 'difficult'
-   * @returns {Promise<Object>} { success, data, error }
-   */
-  static async getRecipesByDifficulty(difficulty) {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('recipes')
-        .select(`
-          *,
-          recipe_ingredients (*)
-        `)
-        .eq('difficulty', difficulty)
-        .order('created_at', { ascending: false });
-    }, `Get ${difficulty} recipes`);
-  }
-
-  /**
-   * Get random recipes for daily menu
-   * @param {number} count - Number of recipes to fetch
-   * @returns {Promise<Object>} { success, data, error }
-   */
-  static async getRandomRecipes(count = 4) {
-    const result = await this.getAllRecipes();
-
-    if (result.success && result.data) {
-      // Shuffle and take 'count' recipes
-      const shuffled = [...result.data].sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, Math.min(count, shuffled.length));
-
+    // Local lookup
+    const local = await this.getLocalRecipes();
+    const recipe = local.find(r => r.id === id);
+    if (recipe) {
       return {
         success: true,
-        data: selected,
-        error: null,
+        data: this.transformToSupabaseFormat(recipe),
+        error: null
       };
     }
 
-    return result;
+    return { success: false, data: null, error: 'Recipe not found' };
   }
 
   /**
    * Create a new recipe with ingredients
-   * @param {Object} recipeData - Recipe object with ingredients array
-   * @returns {Promise<Object>} { success, data, error }
    */
   static async createRecipe(recipeData) {
-    return SupabaseService.execute(async () => {
-      const { ingredients, steps, ...recipeInfo } = recipeData;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const newId = recipeData.id && uuidRegex.test(recipeData.id) 
+      ? recipeData.id 
+      : crypto.randomUUID();
 
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const insertRow = {
-        name: recipeInfo.name,
-        meal_type: recipeInfo.mealType || recipeInfo.meal_type,
-        difficulty: recipeInfo.difficulty,
-        time: parseInt(recipeInfo.time),
-        steps: steps || [],
-      };
-      if (recipeInfo.id && uuidRegex.test(recipeInfo.id)) {
-        insertRow.id = recipeInfo.id;
-      }
+    const formattedRecipe = {
+      id: newId,
+      name: recipeData.name,
+      mealType: recipeData.mealType || recipeData.meal_type || 'lunch',
+      difficulty: recipeData.difficulty || 'easy',
+      time: parseInt(recipeData.time) || 20,
+      steps: recipeData.steps || [],
+      ingredients: recipeData.ingredients || [],
+      created_at: new Date().toISOString()
+    };
 
-      // Insert recipe
-      const recipeResponse = await supabase
-        .from('recipes')
-        .insert([insertRow])
-        .select()
-        .single();
+    if (SupabaseService.isConfigured()) {
+      const result = await SupabaseService.execute(async () => {
+        const { ingredients, steps, ...recipeInfo } = formattedRecipe;
+        const insertRow = {
+          id: newId,
+          name: recipeInfo.name,
+          meal_type: recipeInfo.mealType,
+          difficulty: recipeInfo.difficulty,
+          time: recipeInfo.time,
+          steps: steps,
+        };
 
-      if (recipeResponse.error) {
-        return recipeResponse;
-      }
+        const recipeResponse = await supabase
+          .from('recipes')
+          .insert([insertRow])
+          .select()
+          .single();
 
-      const recipeId = recipeResponse.data.id;
+        if (recipeResponse.error) return recipeResponse;
 
-      // Insert ingredients if provided
-      if (ingredients && ingredients.length > 0) {
-        const ingredientsData = ingredients.map(ing => ({
-          recipe_id: recipeId,
-          name: ing.name,
-          property: ing.property,
-          quantity: ing.quantity,
-          unit: ing.unit,
-        }));
+        if (ingredients && ingredients.length > 0) {
+          const ingredientsData = ingredients.map(ing => ({
+            recipe_id: newId,
+            name: ing.name,
+            property: ing.property || 'other',
+            quantity: ing.quantity || '1',
+            unit: ing.unit || 'pcs',
+          }));
 
-        const ingredientsResponse = await supabase
-          .from('recipe_ingredients')
-          .insert(ingredientsData);
+          const ingredientsResponse = await supabase
+            .from('recipe_ingredients')
+            .insert(ingredientsData);
 
-        if (ingredientsResponse.error) {
-          // Rollback: delete the recipe if ingredients insertion fails
-          await supabase.from('recipes').delete().eq('id', recipeId);
-          return ingredientsResponse;
+          if (ingredientsResponse.error) {
+            await supabase.from('recipes').delete().eq('id', newId);
+            return ingredientsResponse;
+          }
         }
+
+        return await supabase
+          .from('recipes')
+          .select(`
+            *,
+            recipe_ingredients (*)
+          `)
+          .eq('id', newId)
+          .single();
+      }, 'Create recipe');
+
+      if (result.success) {
+        // Update local cache
+        const local = await this.getLocalRecipes();
+        local.unshift(formattedRecipe);
+        await saveData(StorageKeys.RECIPES, local);
+        return result;
       }
+    }
 
-      // Fetch complete recipe with ingredients
-      return await supabase
-        .from('recipes')
-        .select(`
-          *,
-          recipe_ingredients (*)
-        `)
-        .eq('id', recipeId)
-        .single();
-    }, 'Create recipe');
-  }
+    // Local save
+    const local = await this.getLocalRecipes();
+    local.unshift(formattedRecipe);
+    await saveData(StorageKeys.RECIPES, local);
 
-  /**
-   * Update an existing recipe
-   * @param {string} id - Recipe UUID
-   * @param {Object} updates - Fields to update
-   * @returns {Promise<Object>} { success, data, error }
-   */
-  static async updateRecipe(id, updates) {
-    return SupabaseService.execute(async () => {
-      const updateData = {};
-
-      if (updates.name) updateData.name = updates.name;
-      if (updates.mealType || updates.meal_type) {
-        updateData.meal_type = updates.mealType || updates.meal_type;
-      }
-      if (updates.difficulty) updateData.difficulty = updates.difficulty;
-      if (updates.time) updateData.time = parseInt(updates.time);
-      if (updates.steps) updateData.steps = updates.steps;
-
-      return await supabase
-        .from('recipes')
-        .update(updateData)
-        .eq('id', id)
-        .select(`
-          *,
-          recipe_ingredients (*)
-        `)
-        .single();
-    }, `Update recipe ${id}`);
+    return {
+      success: true,
+      data: this.transformToSupabaseFormat(formattedRecipe),
+      error: null
+    };
   }
 
   /**
    * Delete a recipe
-   * @param {string} id - Recipe UUID
-   * @returns {Promise<Object>} { success, data, error }
    */
   static async deleteRecipe(id) {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('recipes')
-        .delete()
-        .eq('id', id);
-    }, `Delete recipe ${id}`);
+    if (SupabaseService.isConfigured()) {
+      const result = await SupabaseService.execute(async () => {
+        return await supabase
+          .from('recipes')
+          .delete()
+          .eq('id', id);
+      }, `Delete recipe ${id}`);
+
+      if (result.success) {
+        const local = await this.getLocalRecipes();
+        const filtered = local.filter(r => r.id !== id);
+        await saveData(StorageKeys.RECIPES, filtered);
+        return result;
+      }
+    }
+
+    const local = await this.getLocalRecipes();
+    const filtered = local.filter(r => r.id !== id);
+    await saveData(StorageKeys.RECIPES, filtered);
+
+    return { success: true, data: null, error: null };
   }
 
   /**
-   * Search recipes by name
-   * @param {string} query - Search query
-   * @returns {Promise<Object>} { success, data, error }
+   * Helper to format frontend recipe into Supabase DB structure
    */
-  static async searchRecipes(query) {
-    return SupabaseService.execute(async () => {
-      return await supabase
-        .from('recipes')
-        .select(`
-          *,
-          recipe_ingredients (*)
-        `)
-        .ilike('name', `%${query}%`)
-        .order('created_at', { ascending: false });
-    }, `Search recipes: ${query}`);
+  static transformToSupabaseFormat(recipe) {
+    if (!recipe) return null;
+    return {
+      id: recipe.id,
+      name: recipe.name,
+      meal_type: recipe.mealType || recipe.meal_type,
+      difficulty: recipe.difficulty,
+      time: recipe.time,
+      steps: recipe.steps || [],
+      recipe_ingredients: (recipe.ingredients || []).map((ing, index) => ({
+        id: ing.id || index,
+        name: ing.name,
+        property: ing.property,
+        quantity: ing.quantity,
+        unit: ing.unit,
+      }))
+    };
+  }
+
+  static transformArrayToSupabaseFormat(recipes) {
+    if (!recipes) return [];
+    return recipes.map(r => this.transformToSupabaseFormat(r));
   }
 
   /**
    * Transform Supabase recipe format to frontend format
-   * @param {Object} supabaseRecipe - Recipe from Supabase
-   * @returns {Object} - Recipe in frontend format
    */
   static transformToFrontend(supabaseRecipe) {
     if (!supabaseRecipe) return null;
@@ -252,11 +254,11 @@ export class RecipeService {
     return {
       id: supabaseRecipe.id,
       name: supabaseRecipe.name,
-      mealType: supabaseRecipe.meal_type,
+      mealType: supabaseRecipe.meal_type || supabaseRecipe.mealType,
       difficulty: supabaseRecipe.difficulty,
       time: supabaseRecipe.time,
       steps: supabaseRecipe.steps || [],
-      ingredients: (supabaseRecipe.recipe_ingredients || []).map(ing => ({
+      ingredients: (supabaseRecipe.recipe_ingredients || supabaseRecipe.ingredients || []).map(ing => ({
         name: ing.name,
         property: ing.property,
         quantity: ing.quantity,
@@ -267,8 +269,6 @@ export class RecipeService {
 
   /**
    * Transform array of Supabase recipes to frontend format
-   * @param {Array} recipes - Array of recipes from Supabase
-   * @returns {Array} - Array of recipes in frontend format
    */
   static transformArrayToFrontend(recipes) {
     if (!recipes || !Array.isArray(recipes)) return [];
