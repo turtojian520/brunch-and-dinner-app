@@ -63,14 +63,17 @@ module.exports = async function handler(req, res) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'WhatToEat <noreply@resend.dev>';
 
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
-    return res.status(500).json({ error: '服务器配置错误' });
+  const missing = [];
+  if (!supabaseUrl) missing.push('VITE_SUPABASE_URL');
+  if (!supabaseServiceKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+  if (missing.length > 0) {
+    console.error('Missing env vars:', missing);
+    return res.status(500).json({ error: `服务器配置错误，缺少环境变量: ${missing.join(', ')}` });
   }
 
   if (!resendApiKey || resendApiKey.startsWith('re_placeholder')) {
-    console.error('Missing or placeholder RESEND_API_KEY');
-    return res.status(500).json({ error: '邮件服务未配置' });
+    console.error('RESEND_API_KEY is missing or still placeholder');
+    return res.status(500).json({ error: '邮件服务未配置，RESEND_API_KEY 无效' });
   }
 
   try {

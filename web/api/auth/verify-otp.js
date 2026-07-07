@@ -65,9 +65,13 @@ module.exports = async function handler(req, res) {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
-    console.error('Missing Supabase configuration env vars');
-    return res.status(500).json({ error: '服务器配置错误' });
+  const missing = [];
+  if (!supabaseUrl) missing.push('VITE_SUPABASE_URL');
+  if (!supabaseServiceKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseAnonKey) missing.push('VITE_SUPABASE_ANON_KEY');
+  if (missing.length > 0) {
+    console.error('Missing env vars:', missing);
+    return res.status(500).json({ error: `服务器配置错误，缺少环境变量: ${missing.join(', ')}` });
   }
 
   try {
