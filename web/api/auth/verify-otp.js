@@ -60,15 +60,15 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: '验证码格式不正确' });
   }
 
-  // Check env vars
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  // Check env vars (support both Vite and Expo naming conventions)
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
   const missing = [];
-  if (!supabaseUrl) missing.push('VITE_SUPABASE_URL');
+  if (!supabaseUrl) missing.push('VITE_SUPABASE_URL 或 EXPO_PUBLIC_SUPABASE_URL');
   if (!supabaseServiceKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
-  if (!supabaseAnonKey) missing.push('VITE_SUPABASE_ANON_KEY');
+  if (!supabaseAnonKey) missing.push('VITE_SUPABASE_ANON_KEY 或 EXPO_PUBLIC_SUPABASE_ANON_KEY');
   if (missing.length > 0) {
     console.error('Missing env vars:', missing);
     return res.status(500).json({ error: `服务器配置错误，缺少环境变量: ${missing.join(', ')}` });

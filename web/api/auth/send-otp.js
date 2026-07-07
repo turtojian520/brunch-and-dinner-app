@@ -57,14 +57,14 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: '邮箱格式不正确' });
   }
 
-  // Check env vars
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  // Check env vars (support both Vite and Expo naming conventions)
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const resendApiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'WhatToEat <noreply@resend.dev>';
 
   const missing = [];
-  if (!supabaseUrl) missing.push('VITE_SUPABASE_URL');
+  if (!supabaseUrl) missing.push('VITE_SUPABASE_URL 或 EXPO_PUBLIC_SUPABASE_URL');
   if (!supabaseServiceKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
   if (missing.length > 0) {
     console.error('Missing env vars:', missing);
